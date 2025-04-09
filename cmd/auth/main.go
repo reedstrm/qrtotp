@@ -1,5 +1,4 @@
 package main
-var version = "dev"
 
 import (
 	"fmt"
@@ -19,6 +18,8 @@ import (
 	"github.com/pquerna/otp"
 	"github.com/pquerna/otp/totp"
 )
+
+var version = "dev"
 
 func main() {
 	if len(os.Args) > 1 && (os.Args[1] == "-h" || os.Args[1] == "--help") {

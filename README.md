@@ -12,7 +12,9 @@ It supports both interactive mode (with live clipboard copy and countdown) and o
 - ⏱️ Show current TOTP and auto-refresh for 3 intervals (usually 90 sec)
 - 📋 Automatically copies to clipboard
 - 🤖 One-shot mode when used in pipelines or scripts
-- 
+- 🧱 Statically compiled Go binary — portable and dependency-free
+
+---
 
 ## 🛑 Anti-Features
 
@@ -67,3 +69,8 @@ echo "TOTP: $code"
 
 TOTP: 361121
 ```
+
+## 📝 License
+
+This project is licensed under the terms of the [GNU General Public License v3.0](LICENSE).
+
