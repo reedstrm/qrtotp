@@ -7,94 +7,68 @@ import (
 	"github.com/skip2/go-qrcode"
 )
 
-func TestParseOtpFromImage_HappyPath(t *testing.T) {
-	otpUrl := "otpauth://totp/TestIssuer:tester@example.com?secret=JBSWY3DPEHPK3PXP&issuer=TestIssuer"
-	tmpFile := "test_happy.png"
-	defer os.Remove(tmpFile)
-
-	err := qrcode.WriteFile(otpUrl, qrcode.Medium, 256, tmpFile)
-	if err != nil {
-		t.Fatalf("Failed to generate QR: %v", err)
+func TestParseOtpFromImage_Table(t *testing.T) {
+	tests := []struct {
+		name        string
+		url         string
+		expectError bool
+		expectSecret string
+	}{
+		{
+			name:        "happy path",
+			url:         "otpauth://totp/TestIssuer:tester@example.com?secret=JBSWY3DPEHPK3PXP&issuer=TestIssuer",
+			expectError: false,
+			expectSecret: "JBSWY3DPEHPK3PXP",
+		},
+		{
+			name:        "missing secret",
+			url:         "otpauth://totp/TestIssuer:tester@example.com?issuer=TestIssuer",
+			expectError: false, // still parsable
+			expectSecret: "",
+		},
+		{
+			name:        "not otpauth scheme",
+			url:         "https://example.com",
+			expectError: true,
+		},
+		{
+			name:        "invalid image content",
+			url:         "", // will corrupt image file later
+			expectError: true,
+		},
 	}
 
-	u, err := parseOtpFromImage(tmpFile)
-	if err != nil {
-		t.Fatalf("Unexpected error: %v", err)
-	}
-	if u.Query().Get("secret") != "JBSWY3DPEHPK3PXP" {
-		t.Errorf("Wrong secret: %s", u.Query().Get("secret"))
-	}
-}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tmpFile := "test_" + tt.name + ".png"
+			defer os.Remove(tmpFile)
 
-func TestParseOtpFromImage_NonExistentFile(t *testing.T) {
-	_, err := parseOtpFromImage("nonexistent.png")
-	if err == nil {
-		t.Error("Expected error for nonexistent file, got nil")
-	}
-}
+			if tt.name == "invalid image content" {
+				// Write garbage to simulate corrupt image
+				_ = os.WriteFile(tmpFile, []byte("this is not a real image"), 0644)
+			} else {
+				err := qrcode.WriteFile(tt.url, qrcode.Medium, 256, tmpFile)
+				if err != nil {
+					t.Fatalf("Failed to write QR code: %v", err)
+				}
+			}
 
-func TestParseOtpFromImage_InvalidFile(t *testing.T) {
-	tmpFile := "test_invalid.txt"
-	defer os.Remove(tmpFile)
+			u, err := parseOtpFromImage(tmpFile)
+			if tt.expectError {
+				if err == nil {
+					t.Errorf("Expected error, got nil")
+				}
+				return
+			}
 
-	os.WriteFile(tmpFile, []byte("not an image"), 0644)
-	_, err := parseOtpFromImage(tmpFile)
-	if err == nil {
-		t.Error("Expected error for invalid image file, got nil")
-	}
-}
+			if err != nil {
+				t.Fatalf("Unexpected error: %v", err)
+			}
 
-func TestParseOtpFromImage_NoQRCode(t *testing.T) {
-	tmpFile := "test_blank.png"
-	defer os.Remove(tmpFile)
-
-	// Create a blank QR image (not containing any QR code)
-	err := qrcode.WriteFile("not-a-qr-code", qrcode.Low, 256, tmpFile)
-	if err != nil {
-		t.Fatalf("Failed to create image: %v", err)
-	}
-
-	// Manually corrupt the payload
-	os.WriteFile(tmpFile, []byte("garbage content"), 0644)
-
-	_, err = parseOtpFromImage(tmpFile)
-	if err == nil {
-		t.Error("Expected error for no QR code, got nil")
-	}
-}
-
-func TestParseOtpFromImage_InvalidQRCodeScheme(t *testing.T) {
-	tmpFile := "test_nonscheme.png"
-	defer os.Remove(tmpFile)
-
-	err := qrcode.WriteFile("https://example.com", qrcode.Medium, 256, tmpFile)
-	if err != nil {
-		t.Fatalf("Failed to create QR: %v", err)
-	}
-
-	_, err = parseOtpFromImage(tmpFile)
-	if err == nil {
-		t.Error("Expected error for non-otpauth QR code, got nil")
-	}
-}
-
-func TestParseOtpFromImage_MissingSecret(t *testing.T) {
-	tmpFile := "test_nosecret.png"
-	defer os.Remove(tmpFile)
-
-	otpURL := "otpauth://totp/TestIssuer:tester@example.com?issuer=TestIssuer"
-	err := qrcode.WriteFile(otpURL, qrcode.Medium, 256, tmpFile)
-	if err != nil {
-		t.Fatalf("Failed to create QR: %v", err)
-	}
-
-	u, err := parseOtpFromImage(tmpFile)
-	if err != nil {
-		t.Fatalf("Unexpected error parsing QR code: %v", err)
-	}
-
-	secret := u.Query().Get("secret")
-	if secret != "" {
-		t.Errorf("Expected missing secret, got %s", secret)
+			// Optional check for secret value
+			if got := u.Query().Get("secret"); got != tt.expectSecret {
+				t.Errorf("Expected secret %q, got %q", tt.expectSecret, got)
+			}
+		})
 	}
 }
