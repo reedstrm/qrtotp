@@ -1,4 +1,5 @@
 package main
+var version = "dev"
 
 import (
 	"fmt"

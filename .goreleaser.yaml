@@ -1,0 +1,45 @@
+# .goreleaser.yaml
+
+project_name: auth
+
+dist: dist
+
+deps:
+  - go mod tidy
+
+builds:
+  - id: main
+    main: ./cmd/auth
+    goos: [linux, darwin, windows]
+    goarch: [amd64, arm64]
+    goarm: [6]  # Only applies if building for ARM32 later
+    ldflags:
+      - -s -w -X main.version={{.Version}}
+    env:
+      - CGO_ENABLED=0
+
+archives:
+  - format: tar.gz
+    name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    files:
+      - README.md
+      - LICENSE
+      - SECURITY.md
+
+  - format: zip
+    name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    goos: [windows]
+    files:
+      - README.md
+      - LICENSE
+      - SECURITY.md
+
+checksum:
+  name_template: "checksums.txt"
+
+changelog:
+  skip: true
+
+release:
+  draft: false
+  prerelease: false
