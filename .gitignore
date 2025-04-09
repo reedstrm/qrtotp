@@ -1,0 +1,28 @@
+# Binaries
+auth
+*.exe
+*.out
+
+# Test QR images
+test_*.png
+
+# Output from just/make
+*.log
+
+# OS / editor files
+.DS_Store
+Thumbs.db
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+
+# Go-specific
+bin/
+vendor/
+*.test
+*.cover
+
+# Debugger cache
+.dccache
