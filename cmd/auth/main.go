@@ -20,6 +20,16 @@ import (
 )
 
 func main() {
+	if len(os.Args) > 1 && (os.Args[1] == "-h" || os.Args[1] == "--help") {
+		fmt.Println(`Usage: auth <path/to/image.png>
+
+This tool extracts TOTP codes from otpauth:// QR images.
+It supports both interactive mode (live countdown) and one-shot mode for scripting.
+
+⚠️ QR codes contain unencrypted secrets. See SECURITY.md for important usage advice.`)
+		os.Exit(0)
+	}
+
 	if len(os.Args) < 2 {
 		fmt.Println("Usage: auth <image_file>")
 		os.Exit(1)

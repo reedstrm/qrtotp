@@ -9,21 +9,21 @@ import (
 
 func TestParseOtpFromImage_Table(t *testing.T) {
 	tests := []struct {
-		name        string
-		url         string
-		expectError bool
+		name         string
+		url          string
+		expectError  bool
 		expectSecret string
 	}{
 		{
-			name:        "happy path",
-			url:         "otpauth://totp/TestIssuer:tester@example.com?secret=JBSWY3DPEHPK3PXP&issuer=TestIssuer",
-			expectError: false,
+			name:         "happy path",
+			url:          "otpauth://totp/TestIssuer:tester@example.com?secret=JBSWY3DPEHPK3PXP&issuer=TestIssuer",
+			expectError:  false,
 			expectSecret: "JBSWY3DPEHPK3PXP",
 		},
 		{
-			name:        "missing secret",
-			url:         "otpauth://totp/TestIssuer:tester@example.com?issuer=TestIssuer",
-			expectError: false, // still parsable
+			name:         "missing secret",
+			url:          "otpauth://totp/TestIssuer:tester@example.com?issuer=TestIssuer",
+			expectError:  false, // still parsable
 			expectSecret: "",
 		},
 		{
