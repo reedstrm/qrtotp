@@ -7,6 +7,8 @@ import (
 	_ "image/png"
 	"net/url"
 	"os"
+	"os/signal"
+	"syscall"
 	"strconv"
 	"strings"
 	"time"
@@ -81,9 +83,33 @@ func main() {
 		fmt.Printf("Provider: %s\n", issuer)
 	}
 
+	// Save original clipboard
+	originalClipboard, err := clipboard.ReadAll()
+	if err != nil {
+		fmt.Println("Warning: could not read clipboard to preserve:", err)
+		originalClipboard = "" // fallback
+	}
+
+	// Set up signal handler to restore clipboard on Ctrl-C
+	c := make(chan os.Signal, 1)
+	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
+	go func() {
+		<-c
+		fmt.Println("\nRestoring original clipboard and exiting.")
+		_ = clipboard.WriteAll(originalClipboard)
+		os.Exit(0)
+	}()
+
+	// Also restore on normal exit
+	defer func() {
+		_ = clipboard.WriteAll(originalClipboard)
+		fmt.Println("\nOriginal clipboard restored.")
+	}()
+
 	var lastCode string
 	var lastInterval int64 = -1
 	intervalCount := 0
+	var exitAfterInterval int64 = -1
 
 	for {
 		now := time.Now()
@@ -94,6 +120,7 @@ func main() {
 				Period:    uint(period),
 				Digits:    otp.DigitsSix,
 				Algorithm: otp.AlgorithmSHA1,
+				Skew:      0,
 			})
 			if err != nil {
 				fmt.Printf("Failed to generate TOTP: %v\n", err)
@@ -111,18 +138,21 @@ func main() {
 
 			fmt.Printf("\rCurrent TOTP code: %s | Expires in: %2d sec", code, period-(now.Unix()%period))
 
-			if intervalCount >= 3 {
-				break
+			if intervalCount == 3 {
+				exitAfterInterval = interval + 1
 			}
 		} else {
 			remaining := period - (now.Unix() % period)
 			fmt.Printf("\rCurrent TOTP code: %s | Expires in: %2d sec", lastCode, remaining)
 		}
 
+		if exitAfterInterval > 0 && interval >= exitAfterInterval {
+			fmt.Println("")
+			break
+		}
+
 		time.Sleep(1 * time.Second)
 	}
-
-	fmt.Println("\nDone.")
 }
 
 func extractIssuerAndLabel(u *url.URL) (string, string) {
