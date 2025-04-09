@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/atotto/clipboard"
 	"github.com/liyue201/goqr"
 	"github.com/pquerna/otp/totp"
 )
@@ -64,20 +65,37 @@ func main() {
 
 	issuer, label := extractIssuerAndLabel(u)
 
-	// Generate TOTP
-	passcode, err := totp.GenerateCode(secret, time.Now())
-	if err != nil {
-		fmt.Printf("Failed to generate TOTP: %v\n", err)
-		os.Exit(1)
-	}
-
-	if issuer != "" && label != "" && issuer != label {
+	// Print header
+	if issuer != "" && label != "" && !strings.EqualFold(issuer, label) {
 		fmt.Printf("Provider: %s (%s)\n", issuer, label)
 	} else {
 		fmt.Printf("Provider: %s\n", issuer)
 	}
 
-	fmt.Printf("Current TOTP code: %s\n", passcode)
+	// Loop: update TOTP every second, re-copy to clipboard if code changes
+	var lastCode string
+	for {
+		code, err := totp.GenerateCode(secret, time.Now())
+		if err != nil {
+			fmt.Printf("Failed to generate TOTP: %v\n", err)
+			os.Exit(1)
+		}
+
+		remaining := 30 - (time.Now().Unix() % 30)
+
+		if code != lastCode {
+			err = clipboard.WriteAll(code)
+			if err != nil {
+				fmt.Printf("Failed to copy to clipboard: %v\n", err)
+			} else {
+				fmt.Printf("Copied new TOTP to clipboard.\n")
+			}
+			lastCode = code
+		}
+
+		fmt.Printf("\rCurrent TOTP code: %s | Expires in: %2d sec", code, remaining)
+		time.Sleep(1 * time.Second)
+	}
 }
 
 func extractIssuerAndLabel(u *url.URL) (string, string) {
@@ -107,4 +125,3 @@ func extractIssuerAndLabel(u *url.URL) (string, string) {
 
 	return issuer, label
 }
-
