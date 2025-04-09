@@ -71,7 +71,12 @@ func main() {
 		os.Exit(1)
 	}
 
-	fmt.Printf("Provider: %s (%s)\n", issuer, label)
+	if issuer != "" && label != "" && issuer != label {
+		fmt.Printf("Provider: %s (%s)\n", issuer, label)
+	} else {
+		fmt.Printf("Provider: %s\n", issuer)
+	}
+
 	fmt.Printf("Current TOTP code: %s\n", passcode)
 }
 
