@@ -75,36 +75,53 @@ func main() {
 		}
 	}
 
-	issuer, label := extractIssuerAndLabel(u)
+	if isPipedOutput() {
+		// Quiet, one-shot output mode
+		code, err := totp.GenerateCodeCustom(secret, time.Now(), totp.ValidateOpts{
+			Period:    uint(period),
+			Digits:    otp.DigitsSix,
+			Algorithm: otp.AlgorithmSHA1,
+			Skew:      0,
+		})
+		if err != nil {
+			fmt.Printf("Error generating TOTP: %v\n", err)
+			os.Exit(1)
+		}
+		fmt.Println(code)
+		return
+	} else { // Interactive use
+		
+		issuer, label := extractIssuerAndLabel(u)
 
-	if issuer != "" && label != "" && !strings.EqualFold(issuer, label) {
-		fmt.Printf("Provider: %s (%s)\n", issuer, label)
-	} else {
-		fmt.Printf("Provider: %s\n", issuer)
+		if issuer != "" && label != "" && !strings.EqualFold(issuer, label) {
+			fmt.Printf("Provider: %s (%s)\n", issuer, label)
+		} else {
+			fmt.Printf("Provider: %s\n", issuer)
+		}
+
+		// Save original clipboard
+		originalClipboard, err := clipboard.ReadAll()
+		if err != nil {
+			fmt.Println("Warning: could not read clipboard to preserve:", err)
+			originalClipboard = "" // fallback
+		}
+
+		// Set up signal handler to restore clipboard on Ctrl-C
+		c := make(chan os.Signal, 1)
+		signal.Notify(c, os.Interrupt, syscall.SIGTERM)
+		go func() {
+			<-c
+			fmt.Println("\nRestoring original clipboard and exiting.")
+			_ = clipboard.WriteAll(originalClipboard)
+			os.Exit(0)
+		}()
+
+		// Also restore on normal exit
+		defer func() {
+			_ = clipboard.WriteAll(originalClipboard)
+			fmt.Println("\nOriginal clipboard restored.")
+		}()
 	}
-
-	// Save original clipboard
-	originalClipboard, err := clipboard.ReadAll()
-	if err != nil {
-		fmt.Println("Warning: could not read clipboard to preserve:", err)
-		originalClipboard = "" // fallback
-	}
-
-	// Set up signal handler to restore clipboard on Ctrl-C
-	c := make(chan os.Signal, 1)
-	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
-	go func() {
-		<-c
-		fmt.Println("\nRestoring original clipboard and exiting.")
-		_ = clipboard.WriteAll(originalClipboard)
-		os.Exit(0)
-	}()
-
-	// Also restore on normal exit
-	defer func() {
-		_ = clipboard.WriteAll(originalClipboard)
-		fmt.Println("\nOriginal clipboard restored.")
-	}()
 
 	var lastCode string
 	var lastInterval int64 = -1
@@ -178,4 +195,12 @@ func extractIssuerAndLabel(u *url.URL) (string, string) {
 	label = strings.TrimSpace(label)
 
 	return issuer, label
+}
+
+func isPipedOutput() bool {
+	info, err := os.Stdout.Stat()
+	if err != nil {
+		return false
+	}
+	return (info.Mode() & os.ModeCharDevice) == 0
 }
