@@ -7,17 +7,19 @@ import (
 	_ "image/png"
 	"net/url"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
 	"github.com/atotto/clipboard"
 	"github.com/liyue201/goqr"
+	"github.com/pquerna/otp"
 	"github.com/pquerna/otp/totp"
 )
 
 func main() {
 	if len(os.Args) < 2 {
-		fmt.Println("Usage: qrtotp <image_file>")
+		fmt.Println("Usage: auth <image_file>")
 		os.Exit(1)
 	}
 
@@ -63,47 +65,70 @@ func main() {
 		os.Exit(1)
 	}
 
+	// Determine period
+	period := int64(30) // default
+	if p := u.Query().Get("period"); p != "" {
+		if parsed, err := strconv.ParseInt(p, 10, 64); err == nil && parsed > 0 {
+			period = parsed
+		}
+	}
+
 	issuer, label := extractIssuerAndLabel(u)
 
-	// Print header
 	if issuer != "" && label != "" && !strings.EqualFold(issuer, label) {
 		fmt.Printf("Provider: %s (%s)\n", issuer, label)
 	} else {
 		fmt.Printf("Provider: %s\n", issuer)
 	}
 
-	// Loop: update TOTP every second, re-copy to clipboard if code changes
 	var lastCode string
+	var lastInterval int64 = -1
+	intervalCount := 0
+
 	for {
-		code, err := totp.GenerateCode(secret, time.Now())
-		if err != nil {
-			fmt.Printf("Failed to generate TOTP: %v\n", err)
-			os.Exit(1)
-		}
+		now := time.Now()
+		interval := now.Unix() / period
 
-		remaining := 30 - (time.Now().Unix() % 30)
+		if interval != lastInterval {
+			code, err := totp.GenerateCodeCustom(secret, now, totp.ValidateOpts{
+				Period:    uint(period),
+				Digits:    otp.DigitsSix,
+				Algorithm: otp.AlgorithmSHA1,
+			})
+			if err != nil {
+				fmt.Printf("Failed to generate TOTP: %v\n", err)
+				os.Exit(1)
+			}
 
-		if code != lastCode {
 			err = clipboard.WriteAll(code)
 			if err != nil {
 				fmt.Printf("Failed to copy to clipboard: %v\n", err)
-			} else {
-				fmt.Printf("Copied new TOTP to clipboard.\n")
 			}
+
 			lastCode = code
+			lastInterval = interval
+			intervalCount++
+
+			fmt.Printf("\rCurrent TOTP code: %s | Expires in: %2d sec", code, period-(now.Unix()%period))
+
+			if intervalCount >= 3 {
+				break
+			}
+		} else {
+			remaining := period - (now.Unix() % period)
+			fmt.Printf("\rCurrent TOTP code: %s | Expires in: %2d sec", lastCode, remaining)
 		}
 
-		fmt.Printf("\rCurrent TOTP code: %s | Expires in: %2d sec", code, remaining)
 		time.Sleep(1 * time.Second)
 	}
+
+	fmt.Println("\nDone.")
 }
 
 func extractIssuerAndLabel(u *url.URL) (string, string) {
-	// Path like "/Issuer:Label" or "/Label"
 	path := strings.TrimPrefix(u.Path, "/")
 	path, _ = url.QueryUnescape(path)
 
-	// Extract issuer
 	issuer := u.Query().Get("issuer")
 	if issuer == "" {
 		if i := strings.Index(path, ":"); i != -1 {
@@ -114,7 +139,6 @@ func extractIssuerAndLabel(u *url.URL) (string, string) {
 	}
 	issuer, _ = url.QueryUnescape(issuer)
 
-	// Extract label
 	var label string
 	if i := strings.Index(path, ":"); i != -1 {
 		label = path[i+1:]
