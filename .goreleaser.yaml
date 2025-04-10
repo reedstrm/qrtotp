@@ -7,8 +7,6 @@ builds:
     main: ./cmd/auth
     goos: [linux, darwin, windows]
     goarch: [amd64, arm64]
-    replacements:
-      darwin: macOS
     ldflags:
       - -s -w -X main.version={{.Version}}
     env:
