@@ -13,6 +13,7 @@ builds:
       - CGO_ENABLED=0
 
 archives:
+  - id: tar-archive
   - format: tar.gz
     name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
     files:
@@ -20,6 +21,7 @@ archives:
       - LICENSE
       - SECURITY.md
 
+  - id: zip-archive
   - format: zip
     name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
     files:
