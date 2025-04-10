@@ -14,7 +14,7 @@ builds:
 
 archives:
   - id: tar-archive
-  - format: tar.gz
+    format: tar.gz
     name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
     files:
       - README.md
@@ -22,7 +22,7 @@ archives:
       - SECURITY.md
 
   - id: zip-archive
-  - format: zip
+    format: zip
     name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
     files:
       - README.md
