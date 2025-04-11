@@ -198,29 +198,42 @@ func printOneShotCode(secret string, period int64) {
 	fmt.Println(code)
 }
 
-// --- Function: interactive live mode ---
-func interactiveMode(secret string, period int64) {
-	// Save and restore clipboard
+// Helper function to restore the clipboard
+func restoreClipboard(originalClipboard string) {
+	if err := clipboard.WriteAll(originalClipboard); err != nil {
+		log.Printf("Warning: could not restore clipboard: %v", err)
+	} else {
+		fmt.Println("\nOriginal clipboard restored.")
+	}
+}
+
+// Helper function to manage clipboard and signal handling
+func manageClipboardAndSignals() {
+	// Save the current clipboard content
 	originalClipboard, err := clipboard.ReadAll()
 	if err != nil {
 		log.Printf("Warning: could not read clipboard to preserve: %v", err)
 		originalClipboard = ""
 	}
 
-	// Restore on Ctrl+C
+	// Defer clipboard restoration
+	defer restoreClipboard(originalClipboard)
+
+	// Handle Ctrl+C signal to restore clipboard and exit
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
 	go func() {
 		<-c
 		fmt.Println("\nRestoring original clipboard and exiting.")
-		_ = clipboard.WriteAll(originalClipboard)
+		restoreClipboard(originalClipboard)
 		os.Exit(0)
 	}()
-	// Restore on normal exit
-	defer func() {
-		_ = clipboard.WriteAll(originalClipboard)
-		fmt.Println("\nOriginal clipboard restored.")
-	}()
+}
+
+// --- Function: interactive live mode ---
+func interactiveMode(secret string, period int64) {
+	// Manage clipboard and signal handling
+	manageClipboardAndSignals()
 
 	var lastCode string
 	var lastInterval int64 = -1
