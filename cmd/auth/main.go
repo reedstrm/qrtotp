@@ -1,10 +1,12 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"image"
 	_ "image/jpeg"
 	_ "image/png"
+	"log"
 	"net/url"
 	"os"
 	"os/signal"
@@ -21,31 +23,71 @@ import (
 
 var version = "dev"
 
-func main() {
-	if len(os.Args) > 1 && (os.Args[1] == "-h" || os.Args[1] == "--help") {
-		fmt.Println(`Usage: auth <path/to/image.png>
+type Config struct {
+	ImagePath string
+}
+
+func initConfig() *Config {
+	config := &Config{}
+
+	// Define flags
+	showHelp := flag.Bool("help", false, "Show help message")
+	showVersion := flag.Bool("version", false, "Show version information")
+	flag.Usage = func() {
+		fmt.Println(`Usage: auth <image_file>
 
 This tool extracts TOTP codes from otpauth:// QR images.
 It supports both interactive mode (live countdown) and one-shot mode for scripting.
 
+Options:
+  --help       Show this help message
+  --version    Show version information
+
 ⚠️ QR codes contain unencrypted secrets. See SECURITY.md for important usage advice.`)
+	}
+
+	// Parse flags
+	flag.Parse()
+
+	// Handle --help flag
+	if *showHelp {
+		flag.Usage()
 		os.Exit(0)
 	}
 
-	if len(os.Args) < 2 {
-		fmt.Println("Usage: auth <image_file>")
-		os.Exit(1)
+	// Handle --version flag
+	if *showVersion {
+		fmt.Printf("auth version: %s\n", version)
+		os.Exit(0)
 	}
 
-	u, err := parseOtpFromImage(os.Args[1])
-	if err != nil {
-		fmt.Println("Error:", err)
+	// Handle positional argument for the image file
+	args := flag.Args()
+	if len(args) < 1 {
+		log.Println("Error: <image_file> argument is required")
+		flag.Usage()
 		os.Exit(1)
+	}
+	config.ImagePath = args[0]
+
+	return config
+}
+
+func main() {
+	log.SetFlags(log.LstdFlags | log.Lshortfile) // Include timestamps and file info in logs
+
+	// Initialize configuration
+	config := initConfig()
+
+	// Process the image file
+	u, err := parseOtpFromImage(config.ImagePath)
+	if err != nil {
+		log.Fatalf("Error Parsing QR code: %v", err)
 	}
 
 	secret := u.Query().Get("secret")
 	if secret == "" {
-		fmt.Println("No secret found in the otpauth URL.")
+		log.Println("No secret found in the otpauth URL.")
 		os.Exit(1)
 	}
 
@@ -151,8 +193,7 @@ func generateTOTP(secret string, period int64, now time.Time) (string, error) {
 func printOneShotCode(secret string, period int64) {
 	code, err := generateTOTP(secret, period, time.Now())
 	if err != nil {
-		fmt.Printf("Error generating TOTP: %v\n", err)
-		os.Exit(1)
+		log.Fatalf("Error generating TOTP: %v", err)
 	}
 	fmt.Println(code)
 }
@@ -162,7 +203,7 @@ func interactiveMode(secret string, period int64) {
 	// Save and restore clipboard
 	originalClipboard, err := clipboard.ReadAll()
 	if err != nil {
-		fmt.Println("Warning: could not read clipboard to preserve:", err)
+		log.Printf("Warning: could not read clipboard to preserve: %v", err)
 		originalClipboard = ""
 	}
 
@@ -193,13 +234,12 @@ func interactiveMode(secret string, period int64) {
 		if interval != lastInterval {
 			code, err := generateTOTP(secret, period, now)
 			if err != nil {
-				fmt.Printf("Failed to generate TOTP: %v\n", err)
-				os.Exit(1)
+				log.Fatalf("Failed to generate TOTP: %v", err)
 			}
 
 			err = clipboard.WriteAll(code)
 			if err != nil {
-				fmt.Printf("Failed to copy to clipboard: %v\n", err)
+				log.Printf("Failed to copy to clipboard: %v", err)
 			}
 
 			lastCode = code
@@ -229,6 +269,7 @@ func interactiveMode(secret string, period int64) {
 func isPipedOutput() bool {
 	info, err := os.Stdout.Stat()
 	if err != nil {
+		log.Printf("Error checking output mode: %v", err)
 		return false
 	}
 	return (info.Mode() & os.ModeCharDevice) == 0
