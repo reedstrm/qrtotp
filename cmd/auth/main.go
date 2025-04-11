@@ -137,14 +137,19 @@ func extractIssuerAndLabel(u *url.URL) (string, string) {
 	return issuer, label
 }
 
-// --- Function: one-shot (quiet) mode ---
-func printOneShotCode(secret string, period int64) {
-	code, err := totp.GenerateCodeCustom(secret, time.Now(), totp.ValidateOpts{
+// --- Function: Generate TOTP ---
+func generateTOTP(secret string, period int64, now time.Time) (string, error) {
+	return totp.GenerateCodeCustom(secret, now, totp.ValidateOpts{
 		Period:    uint(period),
 		Digits:    otp.DigitsSix,
 		Algorithm: otp.AlgorithmSHA1,
 		Skew:      0,
 	})
+}
+
+// --- Function: one-shot (quiet) mode ---
+func printOneShotCode(secret string, period int64) {
+	code, err := generateTOTP(secret, period, time.Now())
 	if err != nil {
 		fmt.Printf("Error generating TOTP: %v\n", err)
 		os.Exit(1)
@@ -186,12 +191,7 @@ func interactiveMode(secret string, period int64) {
 		interval := now.Unix() / period
 
 		if interval != lastInterval {
-			code, err := totp.GenerateCodeCustom(secret, now, totp.ValidateOpts{
-				Period:    uint(period),
-				Digits:    otp.DigitsSix,
-				Algorithm: otp.AlgorithmSHA1,
-				Skew:      0,
-			})
+			code, err := generateTOTP(secret, period, now)
 			if err != nil {
 				fmt.Printf("Failed to generate TOTP: %v\n", err)
 				os.Exit(1)
