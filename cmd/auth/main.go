@@ -240,7 +240,11 @@ func interactiveMode(secret string, period int64) {
 	intervalCount := 0
 	var exitAfterInterval int64 = -1
 
-	for {
+	// Create a ticker that ticks every second
+	ticker := time.NewTicker(1 * time.Second)
+	defer ticker.Stop()
+
+	for range ticker.C {
 		now := time.Now()
 		interval := now.Unix() / period
 
@@ -273,8 +277,6 @@ func interactiveMode(secret string, period int64) {
 			fmt.Println("\r\033[KDone.")
 			break
 		}
-
-		time.Sleep(1 * time.Second)
 	}
 }
 
