@@ -11,7 +11,7 @@ type Config struct {
 	ImagePath string
 }
 
-func InitConfig() *Config {
+func initConfig() *Config {
 	config := &Config{}
 
 	// Define flags

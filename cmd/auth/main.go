@@ -14,16 +14,16 @@ func main() {
 	log.SetFlags(log.LstdFlags | log.Lshortfile) // Include timestamps and file info in logs
 
 	// Initialize configuration
-	config := InitConfig()
+	config := initConfig()
 
 	// Process the image file and extract OTP details
-	secret, period, provider, err := ProcessOtp(config.ImagePath)
+	secret, period, provider, err := processOtp(config.ImagePath)
 	if err != nil {
 		log.Fatalf("Error processing OTP: %v", err)
 	}
 
 	// Handle piped output or interactive mode
-	if IsPipedOutput() {
+	if isPipedOutput() {
 		printOneShotCode(secret, period)
 		return
 	}
@@ -38,7 +38,7 @@ func main() {
 
 // --- Function: one-shot (quiet) mode ---
 func printOneShotCode(secret string, period int64) {
-	code, err := GenerateTOTP(secret, period, time.Now())
+	code, err := generateTOTP(secret, period, time.Now())
 	if err != nil {
 		log.Fatalf("Error generating TOTP: %v", err)
 	}
@@ -48,7 +48,7 @@ func printOneShotCode(secret string, period int64) {
 // --- Function: interactive live mode ---
 func interactiveMode(secret string, period int64) {
 	// Manage clipboard and signal handling
-	restoreClipboard := ManageClipboardAndSignals()
+	restoreClipboard := manageClipboardAndSignals()
 	defer restoreClipboard()
 
 	var lastCode string
@@ -65,7 +65,7 @@ func interactiveMode(secret string, period int64) {
 		interval := now.Unix() / period
 
 		if interval != lastInterval {
-			code, err := GenerateTOTP(secret, period, now)
+			code, err := generateTOTP(secret, period, now)
 			if err != nil {
 				log.Fatalf("Failed to generate TOTP: %v", err)
 			}

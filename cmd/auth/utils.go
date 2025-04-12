@@ -6,7 +6,7 @@ import (
 )
 
 // Check if the output is being piped
-func IsPipedOutput() bool {
+func isPipedOutput() bool {
 	info, err := os.Stdout.Stat()
 	if err != nil {
 		log.Printf("Error checking output mode: %v", err)

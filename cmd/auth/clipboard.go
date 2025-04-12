@@ -20,7 +20,7 @@ func restoreClipboard(originalClipboard string) {
 }
 
 // Manage clipboard content and handle signals for graceful exit
-func ManageClipboardAndSignals() func() {
+func manageClipboardAndSignals() func() {
 	// Save the current clipboard content
 	originalClipboard, err := clipboard.ReadAll()
 	if err != nil {

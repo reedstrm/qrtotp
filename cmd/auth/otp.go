@@ -16,8 +16,8 @@ import (
 	"github.com/pquerna/otp/totp"
 )
 
-// ProcessOtp wraps the parsing and extracting logic into a single function
-func ProcessOtp(imagePath string) (string, int64, string, error) {
+// processOtp wraps the parsing and extracting logic into a single function
+func processOtp(imagePath string) (string, int64, string, error) {
 	// Parse the QR code image
 	u, err := parseOtpFromImage(imagePath)
 	if err != nil {
@@ -45,8 +45,8 @@ func ProcessOtp(imagePath string) (string, int64, string, error) {
 	return secret, period, provider, nil
 }
 
-// GenerateTOTP generates a TOTP code based on the secret and period
-func GenerateTOTP(secret string, period int64, now time.Time) (string, error) {
+// generateTOTP generates a TOTP code based on the secret and period
+func generateTOTP(secret string, period int64, now time.Time) (string, error) {
 	return totp.GenerateCodeCustom(secret, now, totp.ValidateOpts{
 		Period:    uint(period),
 		Digits:    otp.DigitsSix,
